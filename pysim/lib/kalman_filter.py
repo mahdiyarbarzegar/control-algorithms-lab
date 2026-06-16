@@ -19,7 +19,7 @@ class KalmanFilter:
         self.A = A
         self.B = B
         self.H = H
-        self.P = np.zeros_like(self.A)
+        self.P = np.eye(self.transition_size) * 1.0
         self.K = np.zeros((self.transition_size, self.observation_size))
         self.I = np.eye(self.transition_size)
         self.set_q(Q)
