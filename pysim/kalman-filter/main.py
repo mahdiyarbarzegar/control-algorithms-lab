@@ -57,15 +57,22 @@ R = np.array([
     [0.0, 0.10 ** 2]
 ])
 
-kalman = kf.KalmanFilter(A, B, H, R, Q)
+fixed_point = {
+    'BitLength': 32,
+    'FracLength': 20,
+}
+
+kalman = kf.KalmanFilter(A, B, H, R, Q, fixed_point['BitLength'], fixed_point['FracLength'])
 
 x_true_history = np.zeros((A.shape[0], N))
 x_meas_history = np.zeros((A.shape[0], N))
 x_prd_history = np.zeros((A.shape[0], N))
+x_prd_history_fp = np.zeros((A.shape[0], N))
 u_history = np.zeros(N)
 
 x_true = np.zeros((A.shape[0], 1))
 x_prd = np.zeros((A.shape[0], 1))
+x_prd_fp = np.zeros((A.shape[0], 1))
 z_meas = np.zeros((H.shape[0], 1))
 
 for i in range(N):
@@ -99,6 +106,7 @@ for i in range(N):
     z_meas = H @ x_true + measurement_noise
 
     x_prd = kalman.estimate(z_meas, u)
+    x_prd_fp = kalman.estimate_fp(z_meas, u)
 
     # -----------------------------------
     # Store Results
@@ -106,6 +114,7 @@ for i in range(N):
     x_true_history[:, i] = x_true.flatten()
     x_meas_history[:, i] = z_meas.flatten()
     x_prd_history[:, i] = x_prd.flatten()
+    x_prd_history_fp[:, i] = x_prd_fp.flatten()
 
 # -----------------------------------
 # Plot Results
@@ -116,6 +125,7 @@ plt.subplot(3, 1, 1)
 plt.plot(time, x_true_history[0, :], label="True Position")
 plt.plot(time, x_meas_history[0, :], '.', markersize=2, alpha=0.4, label="Measured Position")
 plt.plot(time, x_prd_history[0, :], label="Estimated Position")
+plt.plot(time, x_prd_history_fp[0, :], label="Estimated Position Fixed-Point")
 plt.ylabel("Position (m)")
 plt.grid(True)
 plt.legend()
@@ -124,6 +134,7 @@ plt.subplot(3, 1, 2)
 plt.plot(time, x_true_history[1, :], label="True Velocity")
 plt.plot(time, x_meas_history[1, :], '.', markersize=2, alpha=0.4, label="Measured Velocity")
 plt.plot(time, x_prd_history[1, :], label="Estimated Velocity")
+plt.plot(time, x_prd_history_fp[1, :], label="Estimated Velocity Fixed-Point")
 plt.ylabel("Velocity (m/s)")
 plt.grid(True)
 plt.legend()
