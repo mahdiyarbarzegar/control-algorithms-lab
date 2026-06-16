@@ -80,6 +80,28 @@ class FixedPointVar:
         raw_res = int((self._val * other.get_raw()) / (2 ** self.frac_length))
         return FixedPointVar.from_raw(self.bit_length, self.frac_length, self.wrap_style, self.signed, raw_res)
 
+    def __truediv__(self, other):
+        self._compare_ext_obj(other)
+
+        den = other.get_raw()
+        if den == 0:
+            raise ZeroDivisionError("Fixed-point division by zero")
+
+        num = self._val << self.frac_length
+
+        if (num >= 0 and den > 0) or (num < 0 and den < 0):
+            raw_res = (num + abs(den) // 2) // den
+        else:
+            raw_res = (num - abs(den) // 2) // den
+
+        return FixedPointVar.from_raw(
+            self.bit_length,
+            self.frac_length,
+            self.wrap_style,
+            self.signed,
+            raw_res
+        )
+
     def __lshift__(self, n):
         return FixedPointVar.from_raw(self.bit_length, self.frac_length, self.wrap_style, self.signed, (self._val << n))
 
