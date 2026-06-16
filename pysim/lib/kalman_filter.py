@@ -59,6 +59,8 @@ class KalmanFilter:
 
         residual = z - self.H @ x_prediction
         self.x_estimate = x_prediction + self.K @ residual
-        self.P = (self.I - self.K @ self.H) @ p_prediction
+
+        i_kh = self.I - self.K @ self.H
+        self.P = i_kh @ p_prediction @ i_kh.T + self.K @ self.R @ self.K.T
 
         return self.x_estimate
