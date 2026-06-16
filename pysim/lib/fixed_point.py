@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class FixedPointVar:
     def __init__(self, bit_length=32, frac_length=15, wrap_style="saturate", signed=True, is_raw=False, value=0):
         if wrap_style != 'saturate' and wrap_style != 'wrap': raise ValueError(
@@ -44,6 +47,8 @@ class FixedPointVar:
             raise ValueError('frac_length mismatch')
         if self.signed != obj.signed:
             raise ValueError('signed mismatch')
+        if self.wrap_style != obj.wrap_style:
+            raise ValueError('wrap_style mismatch')
 
     def _apply_wrap(self, val, mode='saturate'):
         """
@@ -140,3 +145,199 @@ class FixedPointVar:
 
     def __repr__(self):
         return f"{self._val / 2 ** self.frac_length} (raw: {self._val})"
+
+
+class FixedPointMat:
+    def __init__(self, mat, bit_length=32, frac_length=15, wrap_style="saturate", signed=True, is_raw=False):
+        if wrap_style != 'saturate' and wrap_style != 'wrap':
+            raise ValueError('wrap_style must be "saturate" or "wrap"')
+
+        self.bit_length = bit_length
+        self.frac_length = frac_length
+        self.wrap_style = wrap_style
+        self.signed = signed
+
+        if self.signed:
+            self.max = 2 ** (bit_length - 1) - 1
+            self.min = -2 ** (bit_length - 1)
+        else:
+            self.max = 2 ** bit_length - 1
+            self.min = 0
+
+        self.shape = mat.shape
+        rows, cols = mat.shape
+
+        self._mat = np.empty((rows, cols), dtype=object)
+
+        for i in range(rows):
+            for j in range(cols):
+                if not is_raw:
+                    self._mat[i, j] = FixedPointVar.from_float(bit_length, frac_length, wrap_style, signed, mat[i, j])
+                else:
+                    self._mat[i, j] = FixedPointVar.from_raw(bit_length, frac_length, wrap_style, signed, mat[i, j])
+
+    @classmethod
+    def from_raw(cls, mat, bit_length=32, frac_length=15, wrap_style="saturate", signed=True):
+        return cls(mat, bit_length, frac_length, wrap_style, signed, is_raw=True)
+
+    @classmethod
+    def from_float(cls, mat, bit_length=32, frac_length=15, wrap_style="saturate", signed=True):
+        return cls(mat, bit_length, frac_length, wrap_style, signed, is_raw=False)
+
+    @property
+    def T(self):
+        res = np.empty((self.shape[1], self.shape[0]), dtype=object)
+
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                res[j, i] = self._mat[i, j].get_raw()
+
+        return FixedPointMat.from_raw(res, self.bit_length, self.frac_length, self.wrap_style, self.signed)
+
+    @classmethod
+    def zeros(cls, rows, cols, bit_length=32, frac_length=15, wrap_style="saturate", signed=True):
+        mat = np.zeros((rows, cols), dtype=np.int64)
+
+        return cls.from_raw(mat, bit_length, frac_length, wrap_style, signed)
+
+    @classmethod
+    def eye(cls, n, bit_length=32, frac_length=15, wrap_style="saturate", signed=True):
+        mat = np.zeros((n, n), dtype=float)
+
+        for i in range(n):
+            mat[i, i] = 1.0
+
+        return cls.from_float(mat, bit_length, frac_length, wrap_style, signed)
+
+    def to_float(self):
+        rows, cols = self.shape
+        out = np.empty((rows, cols))
+
+        for i in range(rows):
+            for j in range(cols):
+                out[i, j] = self._mat[i, j].to_float()
+
+        return out
+
+    def get_raw(self):
+        rows, cols = self.shape
+        out = np.empty((rows, cols))
+
+        for i in range(rows):
+            for j in range(cols):
+                out[i, j] = self._mat[i, j].get_raw()
+
+        return out
+
+    def _compare_ext_obj(self, obj):
+        if self.bit_length != obj.bit_length:
+            raise ValueError('bit_length mismatch')
+        if self.frac_length != obj.frac_length:
+            raise ValueError('frac_length mismatch')
+        if self.signed != obj.signed:
+            raise ValueError('signed mismatch')
+        if self.wrap_style != obj.wrap_style:
+            raise ValueError('wrap_style mismatch')
+
+    def shape(self):
+        return self.shape[0], self.shape[1]
+
+    def __add__(self, other):
+        self._compare_ext_obj(other)
+
+        if self.shape != other.shape:
+            raise ValueError('shape mismatch')
+
+        res = np.empty((self.shape[0], self.shape[1]), dtype=object)
+
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                res[i, j] = (self._mat[i, j] + other._mat[i, j]).get_raw()
+
+        return FixedPointMat.from_raw(res, self.bit_length, self.frac_length, self.wrap_style, self.signed)
+
+    def __sub__(self, other):
+        self._compare_ext_obj(other)
+
+        if self.shape != other.shape:
+            raise ValueError('shape mismatch')
+
+        res = np.empty((self.shape[0], self.shape[1]), dtype=object)
+
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                res[i, j] = (self._mat[i, j] - other._mat[i, j]).get_raw()
+
+        return FixedPointMat.from_raw(res, self.bit_length, self.frac_length, self.wrap_style, self.signed)
+
+    def __matmul__(self, other):
+        self._compare_ext_obj(other)
+
+        if self.shape[1] != other.shape[0]:
+            raise ValueError('matrix multiplication shape mismatch')
+
+        rows = self.shape[0]
+        cols = other.shape[1]
+        inner = self.shape[1]
+
+        res = np.empty((rows, cols), dtype=object)
+
+        for i in range(rows):
+            for j in range(cols):
+                acc = FixedPointVar.from_raw(self.bit_length, self.frac_length, self.wrap_style, self.signed, 0)
+
+                for k in range(inner):
+                    acc = acc + self._mat[i, k] * other._mat[k, j]
+
+                res[i, j] = acc.get_raw()
+
+        return FixedPointMat.from_raw(res, self.bit_length, self.frac_length, self.wrap_style, self.signed)
+
+    def __getitem__(self, item):
+        return self._mat[item]
+
+    def __setitem__(self, key, value):
+        i, j = key
+
+        if isinstance(value, FixedPointVar):
+            self._mat[i, j] = value
+        else:
+            self._mat[i, j] = FixedPointVar.from_float(self.bit_length, self.frac_length, self.wrap_style, self.signed,
+                                                       value)
+
+    def inv_2x2(self):
+        if self.shape != (2, 2):
+            raise ValueError("inv_2x2 only supports 2x2 matrices")
+
+        a = self._mat[0, 0]
+        b = self._mat[0, 1]
+        c = self._mat[1, 0]
+        d = self._mat[1, 1]
+
+        det = a * d - b * c
+
+        if det.get_raw() == 0:
+            raise ZeroDivisionError("singular matrix")
+
+        zero = FixedPointVar.from_raw(
+            self.bit_length,
+            self.frac_length,
+            self.wrap_style,
+            self.signed,
+            0
+        )
+
+        res = np.empty((2, 2), dtype=np.int64)
+
+        res[0, 0] = (d / det).get_raw()
+        res[0, 1] = ((zero - b) / det).get_raw()
+        res[1, 0] = ((zero - c) / det).get_raw()
+        res[1, 1] = (a / det).get_raw()
+
+        return FixedPointMat.from_raw(
+            res,
+            self.bit_length,
+            self.frac_length,
+            self.wrap_style,
+            self.signed
+        )
