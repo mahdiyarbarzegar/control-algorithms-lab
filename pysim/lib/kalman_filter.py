@@ -42,11 +42,8 @@ class KalmanFilter:
         if Q is not None:
             self.set_q(Q)
 
-        if z.shape[0] != self.observation_size and z.shape[1] != 1:
-            raise ValueError("Measurement vector of z should be the size of observation_size * 1")
-
-        if u.shape[0] != self.input_size and u.shape[1] != 1:
-            raise ValueError("Input vector of u should be the size of input_size * 1")
+        z = z.reshape(self.observation_size, 1)
+        u = u.reshape(self.input_size, 1)
 
         # -----------------------------------
         # Kalman Filter Prediction
