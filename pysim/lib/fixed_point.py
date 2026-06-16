@@ -75,9 +75,15 @@ class FixedPointVar:
 
     def __mul__(self, other):
         self._compare_ext_obj(other)
-        # Hardware multiplication usually results in full bit width before truncation
-        # Here we perform high precision then wrap back to object's width
-        raw_res = int((self._val * other.get_raw()) / (2 ** self.frac_length))
+
+        raw_mul = self._val * other.get_raw()
+
+        # rounding before shift
+        if raw_mul >= 0:
+            raw_res = (raw_mul + (1 << (self.frac_length - 1))) >> self.frac_length
+        else:
+            raw_res = -((-raw_mul + (1 << (self.frac_length - 1))) >> self.frac_length)
+
         return FixedPointVar.from_raw(self.bit_length, self.frac_length, self.wrap_style, self.signed, raw_res)
 
     def __truediv__(self, other):
@@ -106,13 +112,15 @@ class FixedPointVar:
         return FixedPointVar.from_raw(self.bit_length, self.frac_length, self.wrap_style, self.signed, (self._val << n))
 
     def __ilshift__(self, n):
-        self._val <<= n
+        self._val = self._apply_wrap(self._val << n, self.wrap_style)
+        return self
 
     def __rshift__(self, n):
         return FixedPointVar.from_raw(self.bit_length, self.frac_length, self.wrap_style, self.signed, (self._val >> n))
 
     def __irshift__(self, n):
-        self._val >>= n
+        self._val = self._apply_wrap(self._val >> n, self.wrap_style)
+        return self
 
     def __gt__(self, other):
         self._compare_ext_obj(other)
