@@ -55,7 +55,7 @@ class KalmanFilter:
         # Kalman Filter Correction
         # -----------------------------------
         s = self.H @ p_prediction @ self.H.T + self.R
-        self.K = p_prediction @ self.H.T @ np.linalg.inv(s)
+        self.K = p_prediction @ self.H.T @ np.linalg.solve(s, np.eye(self.observation_size))
 
         residual = z - self.H @ x_prediction
         self.x_estimate = x_prediction + self.K @ residual
