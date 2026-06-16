@@ -27,12 +27,12 @@ class KalmanFilter:
         self.x_estimate = np.zeros((self.transition_size, 1))
 
     def set_q(self, Q):
-        if Q.shape[0] != self.transition_size and Q.shape[1] != self.transition_size:
+        if Q.shape[0] != self.transition_size or Q.shape[1] != self.transition_size:
             raise ValueError("Q matrix size should be the same as the transition matrix A")
         self.Q = Q
 
     def set_r(self, R):
-        if R.shape[0] != self.observation_size and R.shape[1] != self.observation_size:
+        if R.shape[0] != self.observation_size or R.shape[1] != self.observation_size:
             raise ValueError("R matrix size should be the same as the observation matrix H")
         self.R = R
 
