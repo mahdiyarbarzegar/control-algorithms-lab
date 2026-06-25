@@ -51,7 +51,7 @@ print("\n4. Testing inv_2x2...")
 # Reset A to ensure inverse is valid
 A = fp.FixedPointMat.from_float(A_float, bit_length=BIT_LEN, frac_length=FRAC_LEN)
 
-inv_fxp = A.inv_2x2().to_float()
+inv_fxp = A.inv().to_float()
 inv_float = np.linalg.inv(A_float)
 
 print(f"Float Inv: \n{inv_float}")
