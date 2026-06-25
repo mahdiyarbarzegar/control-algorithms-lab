@@ -137,7 +137,7 @@ elif season == "winter":
                   [15.5],
                   [16.5]])
 
-mpc.u = x #np.tile(x, (Nc, 1))
+mpc.set_init_u(x)
 
 x_hist = []
 y_hist = []

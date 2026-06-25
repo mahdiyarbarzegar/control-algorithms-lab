@@ -160,6 +160,12 @@ class EiMpc:
         for i in range(self.Np):
             self.Rs[i * self.no:(i + 1) * self.no, :] = rs
 
+    def set_init_u(self, u):
+        if u.shape != (self.nu, 1):
+            raise ValueError("u must be scalar or vector of size nu")
+
+        self.u = u
+
     def set_disturbance(self, d):
         if d.shape != self.d.shape:
             raise ValueError("disturbance vector must have a size of Np*nd")
