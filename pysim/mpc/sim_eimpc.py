@@ -54,6 +54,11 @@ rs = np.array([[22.0],
 
 mpc.set_setpoint(rs)
 
+process_noise_std = 0.05  # °C per sample
+measurement_noise_std = 0.1  # °C sensor noise
+Q_true = process_noise_std ** 2 * np.eye(ns)
+R_true = measurement_noise_std ** 2 * np.eye(no)
+
 
 # -----------------------------
 # Helper functions
@@ -119,6 +124,26 @@ def update_hvac_constraints(mpc, y, season):
     )
 
 
+def simulate_plant_state(x, u, d):
+    # model a random process noise
+    w = np.random.multivariate_normal(
+        mean=np.zeros(ns),
+        cov=Q_true
+    ).reshape(4, 1)
+
+    return Am @ x + Bm @ u + Em @ d + w
+
+
+def measure_output_plant(x):
+    # model a random measurment noise
+    v = np.random.multivariate_normal(
+        mean=np.zeros(no),
+        cov=R_true
+    ).reshape(4, 1)
+
+    return Cm @ x + v
+
+
 # -----------------------------
 # Simulation
 # -----------------------------
@@ -145,7 +170,14 @@ u_hist = []
 d_hist = []
 
 for k in range(n_steps):
-    y = Cm @ x
+    if k == 60:
+        if season == "summer":
+            rs = rs - 6
+        else:
+            rs = rs + 6
+        mpc.set_setpoint(rs)
+
+    y = measure_output_plant(x)
 
     # Update MPC with current measurement
     mpc.observe(y)
@@ -153,6 +185,7 @@ for k in range(n_steps):
     # Update measured disturbance prediction
     d_pred = build_disturbance_prediction(k, season, Np)
     mpc.set_disturbance(d_pred)
+    d = d_pred[:nd]
 
     # Update dynamic actuator constraints
     update_hvac_constraints(mpc, y, season)
@@ -161,19 +194,13 @@ for k in range(n_steps):
     mpc.calc_u()
     u = mpc.get_u()
 
-    # Current disturbance
-    tout = outdoor_temperature(k, season)
-    tground = ground_temperature(k, season)
-    d_now = np.array([[tout],
-                      [tground]])
-
     # Simulate plant
-    x = Am @ x + Bm @ u + Em @ d_now
+    x = simulate_plant_state(x, u, d)
 
     x_hist.append(x.flatten())
     y_hist.append(y.flatten())
     u_hist.append(u.flatten())
-    d_hist.append(d_now.flatten())
+    d_hist.append(d.flatten())
 
 x_hist = np.array(x_hist)
 y_hist = np.array(y_hist)
