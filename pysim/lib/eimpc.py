@@ -211,7 +211,7 @@ class EiMpc:
         ])
 
         prob = osqp.OSQP()
-        prob.setup(p, c.ravel(), self.A_constr, l, u, verbose=False)
+        prob.setup(p, c.ravel(), self.A_constr, l.ravel(), u.ravel(), verbose=False)
         res = prob.solve()
 
         if res.info.status != "solved":
