@@ -34,6 +34,8 @@ C = np.array([
     [0.0, 1.0]
 ])
 
+Ec = np.array([[0.0], [0.0]])
+
 # ============================================================
 # Discrete-time model using forward Euler
 # x[k] = A x[k-1] + B u[k]
@@ -42,6 +44,7 @@ C = np.array([
 A = np.eye(2) + Ts * Ac
 B = Ts * Bc
 H = C
+E = Ts * Ec
 
 # ============================================================
 # Noise covariance matrices
@@ -62,7 +65,7 @@ fixed_point = {
     'FracLength': 20,
 }
 
-kalman = kf.KalmanFilter(A, B, H, R, Q, fixed_point['BitLength'], fixed_point['FracLength'])
+kalman = kf.KalmanFilter(A, B, H, E, R, Q, fixed_point['BitLength'], fixed_point['FracLength'])
 
 x_true_history = np.zeros((A.shape[0], N))
 x_meas_history = np.zeros((A.shape[0], N))
@@ -105,8 +108,8 @@ for i in range(N):
 
     z_meas = H @ x_true + measurement_noise
 
-    x_prd = kalman.estimate(z_meas, u)
-    x_prd_fp = kalman.estimate_fp(z_meas, u)
+    x_prd = kalman.estimate(z_meas, u, np.zeros(shape=(1, 1)))
+    x_prd_fp = kalman.estimate_fp(z_meas, u, np.zeros(shape=(1, 1)))
 
     # -----------------------------------
     # Store Results
