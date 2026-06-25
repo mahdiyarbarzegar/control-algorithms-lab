@@ -305,10 +305,40 @@ class FixedPointMat:
             self._mat[i, j] = FixedPointVar.from_float(self.bit_length, self.frac_length, self.wrap_style, self.signed,
                                                        value)
 
-    def inv_2x2(self):
-        if self.shape != (2, 2):
-            raise ValueError("inv_2x2 only supports 2x2 matrices")
+    def inv(self):
+        if self.shape[0] != self.shape[1]:
+            raise ValueError('matrix should be square for inversion')
 
+        if self.shape == (1, 1):
+            return self.__inv_1x1()
+        elif self.shape == (2, 2):
+            return self.__inv_2x2()
+        else:
+            raise NotImplementedError('inversion of matrix size beyond 2x2 is not implemented')
+
+    def __inv_1x1(self):
+        if self._mat[0, 0].get_raw() == 0:
+            raise ZeroDivisionError("singular matrix")
+
+        res = np.empty((1, 1), dtype=np.int64)
+        one = FixedPointVar.from_raw(
+            self.bit_length,
+            self.frac_length,
+            self.wrap_style,
+            self.signed,
+            1 << self.frac_length
+        )
+        res[0, 0] = (one / self._mat[0, 0]).get_raw()
+
+        return FixedPointMat.from_raw(
+            res,
+            self.bit_length,
+            self.frac_length,
+            self.wrap_style,
+            self.signed
+        )
+
+    def __inv_2x2(self):
         a = self._mat[0, 0]
         b = self._mat[0, 1]
         c = self._mat[1, 0]

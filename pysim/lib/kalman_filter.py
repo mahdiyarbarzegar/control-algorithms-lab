@@ -107,10 +107,9 @@ class KalmanFilter:
         # Kalman Filter Correction
         # -----------------------------------
         s_fp = self.H_fp @ p_prediction_fp @ self.H_fp.T + self.R_fp
-        if s_fp.shape[0] != 2 or s_fp.shape[1] != 2:
-            raise NotImplementedError("Fixed Point Matrix inversion beyond 2*2 is not implemented")
 
-        s_inv_fp = s_fp.inv_2x2()
+        s_inv_fp = s_fp.inv()
+
         self.K_fp = p_prediction_fp @ self.H_fp.T @ s_inv_fp
 
         residual_fp = z_fp - self.H_fp @ x_prediction_fp
