@@ -2,6 +2,7 @@ import numpy as np
 from numpy.linalg import matrix_power
 import osqp
 from scipy import sparse
+from lib.kalman_filter import KalmanFilter
 
 
 class EiMpc:
@@ -216,3 +217,18 @@ class EiMpc:
 
     def get_u(self):
         return self.u
+
+
+class EiMpcKalmanEstimate(EiMpc):
+    def __init__(self, Am, Bm, Cm, Em, Np, Nc, KalmanR, KalmanQ):
+        super().__init__(Am, Bm, Cm, Em, Np, Nc)
+        self.kalman_filter = KalmanFilter(Am, Bm, Cm, Em, KalmanR, KalmanQ)
+
+    def observe(self, yk):
+        if yk.shape != self.y.shape:
+            raise ValueError("The input yk vector has difference with dynamic model")
+
+        self.y = yk.copy()
+        xm_last = self.xm.copy()
+        self.xm = self.kalman_filter.estimate(self.y, self.u, self.d[:self.nd])
+        self.delta_xm = self.xm - xm_last
