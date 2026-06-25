@@ -63,8 +63,13 @@ class EiMpc:
 
         self._calc_augmented_model()
         self._calc_compact_matrices_form()
+        if np.linalg.matrix_rank(self.__observability_matrix()) < self.ns:
+            raise ValueError("The Observability Matrix rank should be equal or grater than the number of states")
 
-    def _calc_augmented_model(self):
+    def __observability_matrix(self):
+        return np.vstack([self.Cm @ np.linalg.matrix_power(self.Am, i) for i in range(self.ns)])
+
+    def __calc_augmented_model(self):
         self.A[0:self.ns, 0:self.ns] = self.Am
         self.A[0:self.ns, self.ns:] = np.zeros((self.ns, self.no))
         self.A[self.ns:, 0:self.ns] = self.Cm @ self.Am
