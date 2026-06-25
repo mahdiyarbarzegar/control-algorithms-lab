@@ -3,6 +3,7 @@ from numpy.linalg import matrix_power
 import osqp
 from scipy import sparse
 from lib.kalman_filter import KalmanFilter
+from lib.luenberger_observer import LuenbergerObserver
 
 
 class EiMpc:
@@ -237,4 +238,20 @@ class EiMpcKalmanEstimate(EiMpc):
         self.y = yk.copy()
         xm_last = self.xm.copy()
         self.xm = self.kalman_filter.estimate(self.y, self.u, self.d[:self.nd])
+        self.delta_xm = self.xm - xm_last
+
+
+class EiMpcLuenbergerObs(EiMpc):
+    def __init__(self, Am, Bm, Cm, Em, Np, Nc, L):
+        super().__init__(Am, Bm, Cm, Em, Np, Nc)
+        Dm = np.zeros((self.no, self.nu))
+        self.obs = LuenbergerObserver(Am, Bm, Cm, Dm, Em, L)
+
+    def observe(self, yk):
+        if yk.shape != self.y.shape:
+            raise ValueError("The input yk vector has difference with dynamic model")
+
+        self.y = yk.copy()
+        xm_last = self.xm.copy()
+        self.xm = self.obs.estimate(self.y, self.u, self.d[:self.nd])
         self.delta_xm = self.xm - xm_last
