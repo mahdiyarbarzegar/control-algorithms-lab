@@ -47,29 +47,29 @@ class KalmanFilter:
         self.I = np.eye(self.transition_size)
         self.I_fp = fp.FixedPointMat.eye(self.transition_size, self.fp_bl, self.fp_q, self.fp_wrap_style)
 
-        self.set_q(Q)
-        self.set_r(R)
+        self.__set_q(Q)
+        self.__set_r(R)
 
         self.x_estimate = np.zeros((self.transition_size, 1))
         self.x_estimate_fp = fp.FixedPointMat.zeros(self.transition_size, 1, self.fp_bl, self.fp_q, self.fp_wrap_style)
 
-    def set_q(self, Q):
-        if Q.shape[0] != self.transition_size or Q.shape[1] != self.transition_size:
+    def __set_q(self, Q):
+        if Q.shape != (self.transition_size, self.transition_size):
             raise ValueError("Q matrix size should be the same as the transition matrix A")
         self.Q = Q
         self.Q_fp = fp.FixedPointMat.from_float(Q, self.fp_bl, self.fp_q, self.fp_wrap_style)
 
-    def set_r(self, R):
-        if R.shape[0] != self.observation_size or R.shape[1] != self.observation_size:
-            raise ValueError("R matrix size should be the same as the observation matrix H")
+    def __set_r(self, R):
+        if R.shape != (self.observation_size, self.observation_size):
+            raise ValueError(f"R matrix size should have the size of {self.observation_size} x {self.observation_size}")
         self.R = R
         self.R_fp = fp.FixedPointMat.from_float(R, self.fp_bl, self.fp_q, self.fp_wrap_style)
 
     def estimate(self, z, u, d, R=None, Q=None):
         if R is not None:
-            self.set_r(R)
+            self.__set_r(R)
         if Q is not None:
-            self.set_q(Q)
+            self.__set_q(Q)
 
         z = z.reshape(self.observation_size, 1)
         u = u.reshape(self.input_size, 1)
@@ -97,9 +97,9 @@ class KalmanFilter:
 
     def estimate_fp(self, z, u, d, R=None, Q=None):
         if R is not None:
-            self.set_r(R)
+            self.__set_r(R)
         if Q is not None:
-            self.set_q(Q)
+            self.__set_q(Q)
 
         z_fp = fp.FixedPointMat.from_float(z.reshape(self.observation_size, 1), self.fp_bl, self.fp_q,
                                            self.fp_wrap_style)
