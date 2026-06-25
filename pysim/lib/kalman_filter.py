@@ -3,10 +3,11 @@ from lib import fixed_point as fp
 
 
 class KalmanFilter:
-    def __init__(self, A, B, H, R, Q, fp_bl=32, fp_q=24):
+    def __init__(self, A, B, H, E, R, Q, fp_bl=32, fp_q=24):
         self.transition_size = A.shape[0]
         self.input_size = B.shape[1]
         self.observation_size = H.shape[0]
+        self.measurable_disturbance_size = E.shape[1]
 
         if A.shape[0] != A.shape[1]:
             raise ValueError("State transition matrix A is not square")
@@ -17,6 +18,9 @@ class KalmanFilter:
         if H.shape[1] != A.shape[0]:
             raise ValueError("Column size of the observation matrix H is not equal to the transition size")
 
+        if E.shape[0] != A.shape[0]:
+            raise ValueError("Row size of the input matrix E in not equal to the transition size")
+
         self.fp_wrap_style = 'saturate'
         self.fp_bl = fp_bl
         self.fp_q = fp_q
@@ -26,6 +30,9 @@ class KalmanFilter:
 
         self.B = B
         self.B_fp = fp.FixedPointMat.from_float(B, self.fp_bl, self.fp_q, self.fp_wrap_style)
+
+        self.E = E
+        self.E_fp = fp.FixedPointMat.from_float(E, self.fp_bl, self.fp_q, self.fp_wrap_style)
 
         self.H = H
         self.H_fp = fp.FixedPointMat.from_float(H, self.fp_bl, self.fp_q, self.fp_wrap_style)
@@ -58,7 +65,7 @@ class KalmanFilter:
         self.R = R
         self.R_fp = fp.FixedPointMat.from_float(R, self.fp_bl, self.fp_q, self.fp_wrap_style)
 
-    def estimate(self, z, u, R=None, Q=None):
+    def estimate(self, z, u, d, R=None, Q=None):
         if R is not None:
             self.set_r(R)
         if Q is not None:
@@ -66,11 +73,12 @@ class KalmanFilter:
 
         z = z.reshape(self.observation_size, 1)
         u = u.reshape(self.input_size, 1)
+        d = d.reshape(self.measurable_disturbance_size, 1)
 
         # -----------------------------------
         # Kalman Filter Prediction
         # -----------------------------------
-        x_prediction = self.A @ self.x_estimate + self.B @ u
+        x_prediction = self.A @ self.x_estimate + self.B @ u + self.E @ d
         p_prediction = self.A @ self.P @ self.A.T + self.Q
 
         # -----------------------------------
@@ -87,7 +95,7 @@ class KalmanFilter:
 
         return self.x_estimate
 
-    def estimate_fp(self, z, u, R=None, Q=None):
+    def estimate_fp(self, z, u, d, R=None, Q=None):
         if R is not None:
             self.set_r(R)
         if Q is not None:
@@ -96,11 +104,13 @@ class KalmanFilter:
         z_fp = fp.FixedPointMat.from_float(z.reshape(self.observation_size, 1), self.fp_bl, self.fp_q,
                                            self.fp_wrap_style)
         u_fp = fp.FixedPointMat.from_float(u.reshape(self.input_size, 1), self.fp_bl, self.fp_q, self.fp_wrap_style)
+        d_fp = fp.FixedPointMat.from_float(d.reshape(self.measurable_disturbance_size, 1), self.fp_bl, self.fp_q,
+                                           self.fp_wrap_style)
 
         # -----------------------------------
         # Kalman Filter Prediction
         # -----------------------------------
-        x_prediction_fp = self.A_fp @ self.x_estimate_fp + self.B_fp @ u_fp
+        x_prediction_fp = self.A_fp @ self.x_estimate_fp + self.B_fp @ u_fp + self.E_fp @ d_fp
         p_prediction_fp = self.A_fp @ self.P_fp @ self.A_fp.T + self.Q_fp
 
         # -----------------------------------
